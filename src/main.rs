@@ -1,5 +1,5 @@
 use iced::Sandbox;
 
-fn main() {
-    calcooler::App::new();
+fn main() -> iced::Result {
+    calcooler::App::run(iced::Settings::default())
 }
