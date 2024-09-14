@@ -1,11 +1,12 @@
 pub mod config;
 pub mod keypad;
+pub mod message;
+pub mod operation;
+
+use crate::app::{keypad::button, message::Message, operation::Operation};
 
 use iced::widget::{column, horizontal_space, row, text};
 use iced::{Element, Sandbox, Theme};
-
-use crate::app::keypad::button;
-use crate::Message;
 
 #[derive(Default)]
 pub struct App {
@@ -14,23 +15,13 @@ pub struct App {
     integer_part: u128,
     fraction_part: u128,
     is_negative: bool,
+    selected_operation: Option<Operation>,
 }
 #[derive(Default)]
 enum InsertionMode {
     #[default]
     Integer,
     Fraction,
-}
-impl App {
-    fn compose_screen_text(&mut self) {
-        self.screen_text.clear();
-        self.is_negative.then(|| self.screen_text.push('−'));
-        self.screen_text.push_str(&self.integer_part.to_string());
-        (self.fraction_part != 0).then(|| {
-            self.screen_text.push(',');
-            self.screen_text.push_str(&self.fraction_part.to_string());
-        });
-    }
 }
 impl Sandbox for App {
     type Message = Message;
@@ -49,17 +40,7 @@ impl Sandbox for App {
     fn update(&mut self, message: Message) {
         println!("Message: {message:?}");
         match message {
-            Message::Digit(digit) => {
-                match self.insertion_mode {
-                    // TODO: DRY
-                    InsertionMode::Integer => {
-                        self.integer_part = (self.integer_part * 10) + u128::from(digit);
-                    }
-                    InsertionMode::Fraction => {
-                        self.fraction_part = (self.fraction_part * 10) + u128::from(digit);
-                    }
-                }
-            }
+            Message::Digit(digit) => self.push_digit(digit),
             Message::Comma => self.insertion_mode = InsertionMode::Fraction,
             _ => (),
         }
@@ -86,7 +67,7 @@ impl Sandbox for App {
                 button("1/x", Message::Reciprocal),
                 button("x²", Message::Square),
                 button("√", Message::SquareRoot),
-                button("÷", Message::Divide),
+                button("÷", Message::Operation(Operation::Divide)),
             ]
             .spacing(config::keypad::BUTTON_SPACING);
 
@@ -94,7 +75,7 @@ impl Sandbox for App {
                 button("7", Message::Digit(7)),
                 button("8", Message::Digit(8)),
                 button("9", Message::Digit(9)),
-                button("×", Message::Multiply),
+                button("×", Message::Operation(Operation::Multiply)),
             ]
             .spacing(config::keypad::BUTTON_SPACING);
 
@@ -102,7 +83,7 @@ impl Sandbox for App {
                 button("4", Message::Digit(4)),
                 button("5", Message::Digit(5)),
                 button("6", Message::Digit(6)),
-                button("−", Message::Subtract),
+                button("−", Message::Operation(Operation::Subtract)),
             ]
             .spacing(config::keypad::BUTTON_SPACING);
 
@@ -110,7 +91,7 @@ impl Sandbox for App {
                 button("1", Message::Digit(1)),
                 button("2", Message::Digit(2)),
                 button("3", Message::Digit(3)),
-                button("+", Message::Add),
+                button("+", Message::Operation(Operation::Add)),
             ]
             .spacing(config::keypad::BUTTON_SPACING);
 
@@ -130,5 +111,27 @@ impl Sandbox for App {
 
     fn theme(&self) -> Theme {
         Theme::Dracula
+    }
+}
+impl App {
+    fn compose_screen_text(&mut self) {
+        self.screen_text.clear();
+        self.is_negative.then(|| self.screen_text.push('−'));
+        self.screen_text.push_str(&self.integer_part.to_string());
+        (self.fraction_part != 0).then(|| {
+            self.screen_text.push(',');
+            self.screen_text.push_str(&self.fraction_part.to_string());
+        });
+    }
+
+    fn push_digit(&mut self, digit: u8) {
+        match self.insertion_mode {
+            InsertionMode::Integer => {
+                self.integer_part = (self.integer_part * 10) + u128::from(digit);
+            }
+            InsertionMode::Fraction => {
+                self.fraction_part = (self.fraction_part * 10) + u128::from(digit);
+            }
+        }
     }
 }

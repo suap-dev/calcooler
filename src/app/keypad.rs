@@ -1,8 +1,8 @@
-use crate::Message;
 use iced::{widget, Length};
 
+use crate::app::message::Message;
+
 pub fn button(content: &str, message: Message) -> widget::Button<Message> {
-    // let digit_str = digit.to_string().as_str();
     widget::button(content)
         .on_press(message)
         .width(Length::Fill)
