@@ -1,5 +1,5 @@
-pub(crate) mod config;
-pub(crate) mod keypad;
+pub mod config;
+pub mod keypad;
 
 use iced::widget::{column, horizontal_space, row, text};
 use iced::{Element, Sandbox, Theme};
@@ -7,8 +7,30 @@ use iced::{Element, Sandbox, Theme};
 use crate::app::keypad::button;
 use crate::Message;
 
+#[derive(Default)]
 pub struct App {
     screen_text: String,
+    insertion_mode: InsertionMode,
+    integer_part: u128,
+    fraction_part: u128,
+    is_negative: bool,
+}
+#[derive(Default)]
+enum InsertionMode {
+    #[default]
+    Integer,
+    Fraction,
+}
+impl App {
+    fn compose_screen_text(&mut self) {
+        self.screen_text.clear();
+        self.is_negative.then(|| self.screen_text.push('−'));
+        self.screen_text.push_str(&self.integer_part.to_string());
+        (self.fraction_part != 0).then(|| {
+            self.screen_text.push(',');
+            self.screen_text.push_str(&self.fraction_part.to_string());
+        });
+    }
 }
 impl Sandbox for App {
     type Message = Message;
@@ -16,15 +38,32 @@ impl Sandbox for App {
     fn new() -> Self {
         Self {
             screen_text: "0".to_string(),
+            ..Self::default()
         }
     }
 
     fn title(&self) -> String {
-        "Calcooler - a cooler calculator".to_string()
+        "Calcooler - a cool calculator".to_string()
     }
 
     fn update(&mut self, message: Message) {
         println!("Message: {message:?}");
+        match message {
+            Message::Digit(digit) => {
+                match self.insertion_mode {
+                    // TODO: DRY
+                    InsertionMode::Integer => {
+                        self.integer_part = (self.integer_part * 10) + u128::from(digit);
+                    }
+                    InsertionMode::Fraction => {
+                        self.fraction_part = (self.fraction_part * 10) + u128::from(digit);
+                    }
+                }
+            }
+            Message::Comma => self.insertion_mode = InsertionMode::Fraction,
+            _ => (),
+        }
+        self.compose_screen_text();
     }
 
     fn view(&self) -> Element<'_, Message> {
