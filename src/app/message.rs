@@ -13,7 +13,7 @@ pub enum Message {
     Square,
     SquareRoot,
 
-    Digit(u8),
+    Digit(u32),
 
     // bottom row
     ToggleSign,

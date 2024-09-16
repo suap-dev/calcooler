@@ -1,20 +1,29 @@
-pub mod config;
-pub mod keypad;
-pub mod message;
-pub mod operation;
+mod config;
+mod keypad;
+mod message;
+mod operation;
+mod screen;
 
-use crate::app::{keypad::button, message::Message, operation::Operation};
+// use crate::app::config::screen::MAX_TEXT_LENGTH;
+// use crate::app::{keypad::button, message::Message, operation::Operation};
 
-use iced::widget::{column, horizontal_space, row, text};
+use message::Message;
+use operation::Operation;
+
+use iced::widget::column;
 use iced::{Element, Sandbox, Theme};
 
 #[derive(Default)]
 pub struct App {
-    screen_text: String,
-    insertion_mode: InsertionMode,
+    screen: screen::Screen,
+
     integer_part: u128,
     fraction_part: u128,
     is_negative: bool,
+
+    insertion_mode: InsertionMode,
+
+    registry: Option<f64>,
     selected_operation: Option<Operation>,
 }
 #[derive(Default)]
@@ -27,111 +36,44 @@ impl Sandbox for App {
     type Message = Message;
 
     fn new() -> Self {
-        Self {
-            screen_text: "0".to_string(),
-            ..Self::default()
-        }
+        Self::default()
     }
 
     fn title(&self) -> String {
-        "Calcooler - a cool calculator".to_string()
+        config::app::TITLE.into()
     }
 
     fn update(&mut self, message: Message) {
         println!("Message: {message:?}");
         match message {
-            Message::Digit(digit) => self.push_digit(digit),
-            Message::Comma => self.insertion_mode = InsertionMode::Fraction,
+            Message::Digit(digit) => {
+                self.screen
+                    .push_digit(digit)
+                    .unwrap_or_else(|e| println!("Error: {e:?}"));
+            }
+            Message::Comma => {
+                if matches!(self.insertion_mode, InsertionMode::Integer) {
+                    self.screen
+                        .push(',')
+                        .unwrap_or_else(|e| println!("Error: {e:?}"));
+                    self.insertion_mode = InsertionMode::Fraction;
+                }
+            }
+            Message::Operation(operation) => {
+                self.selected_operation = Some(operation);
+            }
             _ => (),
         }
-        self.compose_screen_text();
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let screen = row![
-            horizontal_space(),
-            text(&self.screen_text).size(config::screen::TEXT_SIZE)
-        ]
-        .padding(config::screen::PADDING);
-
-        let keypad = {
-            let row_1 = row![
-                button("%", Message::Percent),
-                button("CE", Message::ClearEntry),
-                button("C", Message::Clear),
-                button("Back", Message::Back),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-
-            let row_2 = row![
-                button("1/x", Message::Reciprocal),
-                button("x²", Message::Square),
-                button("√", Message::SquareRoot),
-                button("÷", Message::Operation(Operation::Divide)),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-
-            let row_3 = row![
-                button("7", Message::Digit(7)),
-                button("8", Message::Digit(8)),
-                button("9", Message::Digit(9)),
-                button("×", Message::Operation(Operation::Multiply)),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-
-            let row_4 = row![
-                button("4", Message::Digit(4)),
-                button("5", Message::Digit(5)),
-                button("6", Message::Digit(6)),
-                button("−", Message::Operation(Operation::Subtract)),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-
-            let row_5 = row![
-                button("1", Message::Digit(1)),
-                button("2", Message::Digit(2)),
-                button("3", Message::Digit(3)),
-                button("+", Message::Operation(Operation::Add)),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-
-            let row_6 = row![
-                button("±", Message::ToggleSign),
-                button("0", Message::Digit(0)),
-                button(",", Message::Comma),
-                button("=", Message::Calculate),
-            ]
-            .spacing(config::keypad::BUTTON_SPACING);
-            column![row_1, row_2, row_3, row_4, row_5, row_6]
-                .spacing(config::keypad::BUTTON_SPACING)
-        };
+        let screen = self.screen.get();
+        let keypad = keypad::get();
 
         column![screen, keypad].padding(config::app::PADDING).into()
     }
 
     fn theme(&self) -> Theme {
         Theme::Dracula
-    }
-}
-impl App {
-    fn compose_screen_text(&mut self) {
-        self.screen_text.clear();
-        self.is_negative.then(|| self.screen_text.push('−'));
-        self.screen_text.push_str(&self.integer_part.to_string());
-        (self.fraction_part != 0).then(|| {
-            self.screen_text.push(',');
-            self.screen_text.push_str(&self.fraction_part.to_string());
-        });
-    }
-
-    fn push_digit(&mut self, digit: u8) {
-        match self.insertion_mode {
-            InsertionMode::Integer => {
-                self.integer_part = (self.integer_part * 10) + u128::from(digit);
-            }
-            InsertionMode::Fraction => {
-                self.fraction_part = (self.fraction_part * 10) + u128::from(digit);
-            }
-        }
     }
 }
