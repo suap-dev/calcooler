@@ -28,23 +28,30 @@ impl Screen {
     }
 
     pub fn set_text(&mut self, text: &str) -> Result<(), Error> {
-        self.check_text_full()?;
+        self.is_text_full()?;
 
         self.text.clear();
         self.text.push_str(text);
         Ok(())
     }
 
+    pub fn push_comma(&mut self) -> Result<(), Error> {
+        if self.text.is_empty() {
+            self.push_digit(0)?;
+        }
+        self.push('.')
+    }
+
     pub fn push(&mut self, character: char) -> Result<(), Error> {
-        self.check_text_full()?;
+        self.is_text_full()?;
 
         self.text.push(character);
         Ok(())
     }
 
     pub fn push_digit(&mut self, digit: u32) -> Result<(), Error> {
-        self.check_text_full()?;
-        if self.text.is_empty() && digit == 0 {
+        self.is_text_full()?;
+        if self.text_is_integer_zero() {
             return Err(Error::PushingZeroToZero);
         }
         match char::from_digit(digit, 10) {
@@ -56,15 +63,60 @@ impl Screen {
         }
     }
 
-    pub fn is_screen_full(&self) -> bool {
+    pub fn is_full(&self) -> bool {
         self.text.len() > config::screen::MAX_TEXT_LENGTH
     }
 
-    fn check_text_full(&self) -> Result<(), Error> {
-        if self.is_screen_full() {
+    fn is_text_full(&self) -> Result<(), Error> {
+        if self.is_full() {
             Err(Error::MaxInputReached)
         } else {
             Ok(())
         }
+    }
+
+    fn text_is_integer_zero(&self) -> bool {
+        let mut chars = self.text.chars();
+        chars.next().is_some_and(|value| value == '0') && chars.next().is_none()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #![allow(unused_must_use)]
+    use super::*;
+    #[test]
+    fn the_zero_is_zero() {
+        let mut screen = Screen::default();
+        screen.push_digit(0);
+        assert!(screen.text_is_integer_zero());
+    }
+    #[test]
+    fn non_zero_is_not_zero() {
+        let mut screen = Screen::default();
+        screen.push_digit(1);
+        assert!(!screen.text_is_integer_zero());
+        screen.push_digit(0);
+        assert!(!screen.text_is_integer_zero());
+    }
+    #[test]
+    fn fraction_is_not_zero() {
+        let mut screen = Screen::default();
+        screen.push_digit(0);
+        screen.push('.');
+        assert!(!screen.text_is_integer_zero());
+        screen.push_digit(0);
+        assert!(!screen.text_is_integer_zero());
+        screen.push_digit(1);
+        assert!(!screen.text_is_integer_zero());
+    }
+    #[test]
+    fn zero_to_zero_is_not_possible() {
+        let mut screen = Screen::default();
+        screen.push_digit(0);
+        assert!(matches!(
+            screen.push_digit(0).unwrap_err(),
+            Error::PushingZeroToZero
+        ));
     }
 }

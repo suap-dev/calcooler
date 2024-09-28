@@ -52,7 +52,7 @@ pub fn get() -> widget::Column<'static, Message> {
         row![
             button("±", Message::ToggleSign),
             button("0", Message::Digit(0)),
-            button(",", Message::Comma),
+            button(".", Message::Comma),
             button("=", Message::Calculate),
         ]
         .spacing(config::keypad::BUTTON_SPACING)
